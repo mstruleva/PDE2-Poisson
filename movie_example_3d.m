@@ -1,0 +1,1 @@
+[x,y]=meshgrid(linspace(-2,2, 50));z1=sin(y).*exp(x.^2-5);axis ([-3 3 -3 3 -3 15]);for i=1:15  mesh(x,y,z1,'EdgeColor','blue');  hold on  z2=i/2*x.*cos(y) + 10 - i;  mesh(x,y,z2, 'EdgeColor','red');  hold off  pause(1e-1);endfor
