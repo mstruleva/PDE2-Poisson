@@ -1,0 +1,222 @@
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <cmath>
+#include <fstream>
+#include <ctime>
+
+using namespace std;
+
+void print_vector(vector<double> & v);
+void print_matrix(int Nx, int Ny, double **vect);
+
+double a = 0, a_ = M_PI/2;
+double b = 1, b_= 3*M_PI/2;
+double c = 0, c_ = M_PI/2;
+double d = 1, d_ = 3*M_PI/2;
+
+const int ITERS_max = 1e3;
+
+double u_exact(double x, double y) {
+    return x*x*(1-x)*(1-x) + y*y*(1-y)*(1-y);
+}
+
+double F0(double x, double y) {
+    return -4 + 12*(x+y) - 12*(x*x+y*y);
+}
+double F1(double y) {
+    return y*y*(1-y)*(1-y);
+}
+double F2(double y) {
+    return y*y*(1-y)*(1-y);
+}
+
+double F3(double x) {
+    return x*x*(1-x)*(1-x);
+}
+double F4(double x) {
+    return x*x*(1-x)*(1-x);
+}
+
+double u_exact_(double x, double y) {
+    return -cos(x*x*x + y)*sin(2*M_PI*x*y)*sqrt(x*x+y*y+2*y+1) + 2*M_PI*sin(x*x*x + y)*cos(4*M_PI*x*y)*sqrt(x+ y + 2);
+}
+
+double F0_(double x, double y) {
+    double pi = M_PI;
+    return -18*pi*pow(x, 4)*sqrt(x + y + 2)*sin(pow(x,3) + y)*cos(4*pi*x*y) + 9*pow(x,4)*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(2*pi*x*y)*cos(pow(x,4) + y) +
+    6*pow(x,3)*sin(2*pi*x*y)*sin(pow(x,3) + y)/sqrt(x*x + y*y + 2*y + 1) - 48*pow(pi,2)*pow(x,2)*y*sqrt(x + y + 2)*sin(4*pi*x*y)*cos(pow(x,3) + y) +
+    12*pi*pow(x,2)*y*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(pow(x,3) + y)*cos(2*pi*x*y) - 32*pow(pi,3)*pow(x,2)*sqrt(x + y + 2)*sin(pow(x,3) + y)*cos(4*pi*x*y) +
+    4*pow(pi,2)*pow(x,2)*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(2*pi*x*y)*cos(pow(x,3) + y) + pow(x,2)*sin(2*pi*x*y)*cos(pow(x,3) + y)/pow((pow(x,2) + pow(y,2) + 2*y + 1),3/2) +
+    6*pi*pow(x,2)*cos(4*pi*x*y)*cos(pow(x,3) + y)/sqrt(x + y + 2) - 4*pi*x*y*cos(2*pi*x*y)*cos(pow(x,3) + y)/sqrt(pow(x,2) + pow(y,2) + 2*y + 1) -
+    4*pi*x*(y + 1)*cos(2*pi*x*y)*cos(pow(x,3) + y)/sqrt(pow(x,2) + pow(y,2) + 2*y + 1) - 16*pow(pi,2)*x*sqrt(x + y + 2)*sin(4*pi*x*y)*cos(pow(x,3) + y) +
+    12*pi*x*sqrt(x + y + 2)*cos(4*pi*x*y)*cos(pow(x,3) + y) + 6*x*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(2*pi*x*y)*sin(pow(x,3) + y) +
+    4*pi*x*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(pow(x,3) + y)*cos(2*pi*x*y) - 8*pow(pi,2)*x*sin(4*pi*x*y)*sin(pow(x,3) + y)/sqrt(x + y + 2) -
+    32*pow(pi,3)*pow(y,2)*sqrt(x + y + 2)*sin(pow(x,3) + y)*cos(4*pi*x*y) + 4*pow(pi,2)*pow(y,2)*sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(2*pi*x*y)*cos(pow(x,3) + y) -
+    8*pow(pi,2)*y*sin(4*pi*x*y)*sin(pow(x,3) + y)/sqrt(x + y + 2) + pow((y + 1),2)*sin(2*pi*x*y)*cos(pow(x,3) + y)/pow((pow(x,2) + pow(y,2) + 2*y + 1),3/2) +
+    2*(y + 1)*sin(2*pi*x*y)*sin(pow(x,3) + y)/sqrt(pow(x,2) + pow(y,2) + 2*y + 1) - 2*pi*sqrt(x + y + 2)*sin(pow(x,3) + y)*cos(4*pi*x*y) +
+    sqrt(pow(x,2) + pow(y,2) + 2*y + 1)*sin(2*pi*x*y)*cos(pow(x,3) + y) - 2*sin(2*pi*x*y)*cos(pow(x,3) + y)/sqrt(pow(x,2) + pow(y,2) + 2*y + 1) +
+    2*pi*cos(4*pi*x*y)*cos(pow(x,3) + y)/sqrt(x + y + 2) - pi*sin(pow(x,3) + y)*cos(4*pi*x*y)/pow((x + y + 2),3/2);
+}
+double F1_(double y) {
+    return u_exact_(a_, y);
+}
+double F2_(double y) {
+    return u_exact_(b_, y);
+}
+double F3_(double x) {
+    return u_exact_(x, c_);
+}
+double F4_(double x) {
+    return u_exact_(x, d_);
+}
+
+double solve(int Nx, int Ny, double w, double eps_stop) {
+
+    double hx = (b-a)/double(Nx);
+    double hy = (d-c)/double(Ny);
+
+    //cout << "u_ex: \n";
+    //print_matrix(Nx, Ny, u_ex); //
+
+    /// initializing the initial guess
+    auto ** u_prev = new double*[Nx+1];
+    for(int i = 0; i < Ny+1; ++i) u_prev[i] = new double[Ny+1];
+    for (int i = 0; i < Nx + 1; ++i) for (int j = 0; j < Ny + 1; ++j) u_prev[i][j] = 0;
+    for (int i = 0; i < Nx + 1; ++i) {
+        u_prev[i][0] = F3(a + i * hx);
+        u_prev[i][Ny] = F4(a + i * hx);
+    }
+    for (int j = 0; j < Ny + 1; ++j) {
+        u_prev[0][j] = F1(c + j * hy);
+        u_prev[Nx][j] = F2(c + j * hy);
+    }
+    //cout << "u_prev: \n";
+    //print_matrix(Nx, Ny, u_prev);
+
+    ofstream INIT("/Users/marinastruleva/Desktop/TEST/PDE_init.txt");
+    INIT << setprecision(8);
+
+    double EPS = 2;
+
+    /// middle step
+    auto ** u_ = new double*[Nx+1];
+    for(int i = 0; i < Ny+1; ++i) u_[i] = new double[Ny+1];
+    for (int i = 0; i < Nx + 1; ++i) for (int j = 0; j < Ny + 1; ++j) u_[i][j] = u_prev[i][j];
+    int iters = 0;
+    double eps = 1;
+    while((eps>eps_stop)&((iters<ITERS_max))){
+        for (int j = 0; j < Ny+1; ++j){
+            u_prev[0][j]=u_exact(a,c+hy*j);
+            u_prev[Nx][j]=u_exact(b,c+hy*j);
+        };
+
+        for (int i = 0; i < Nx+1; ++i){
+            u_prev[i][0]=u_exact(a+hx*i,c);
+            u_prev[i][Ny]=u_exact(a+hx*i,d);
+        };
+
+
+        for (int i = 1; i < Nx; ++i){
+            for (int j = 1; j < Ny; ++j){
+                u_prev[i][j]=-F0(a+hx*i,c+hy*j)*hx*hy/4+(u_prev[i][j-1]+u_prev[i-1][j]+u_[i][j+1]+u_[i+1][j])/4;
+            }
+        };
+        eps=0;
+        for (int i = 1; i < Nx; ++i){
+            for (int j = 1; j < Ny; ++j){
+                u_prev[i][j]=w*u_prev[i][j]+(1-w)*u_[i][j];
+                eps=max(eps,fabs(u_prev[i][j]-u_[i][j]));
+                INIT << u_prev[i][j] << "\t";
+            }
+            INIT << "\n";
+        }
+        for (int i = 0; i < Nx+1; ++i){
+            for (int j = 0; j < Ny+1; ++j){
+                u_[i][j]=u_prev[i][j];
+            }
+        }
+        iters++;
+    }
+    cout << "it = " << iters << "\t eps = " << eps << endl;
+    double eps1=0;
+
+    for (int i = 1; i < Nx+1; ++i){
+        for (int j = 1; j < Ny+1; ++j){
+            eps1=max(eps1,fabs(u_prev[i][j]-u_exact(a+hx*i,c+hy*j)));
+        }
+    }
+    cout << eps1 << endl;
+    return eps1;
+}
+
+
+int main() {
+    const clock_t begin_time = clock();
+    cout << "\t\t ======= BEGIN =====\n";
+    int Nx = 40;
+    double hx = (b-a)/double(Nx);
+    int Ny = Nx;
+    double hy = (d-c)/double(Ny);
+
+    double omega = 2/(1+sin(M_PI*hx/(b-a)));
+
+
+    cout << "\nfor Nx = " << Nx << ", Ny = " << Ny << endl;
+
+    cout << "omega = " << omega;
+    cout << "\n\n";
+    int iters;
+    double E;
+    E = solve(Nx, Ny, omega, 1e-7);
+
+    /// CREATING GRID
+    ofstream GRID("/Users/marinastruleva/Desktop/TEST/PDE_grid.txt");
+    GRID << setprecision(8);
+
+    for (int i = 0; i < Nx + 1; ++i) {
+        //cout << a + i*hx << " ";
+        GRID << a + i*hx << "\t";
+    }
+    GRID << "\n";
+    cout << endl;
+    for (int i = 0; i < Ny + 1; ++i) {
+        //cout << c + i*hy << " ";
+        GRID << c + i*hy << "\t";
+    }
+    cout << "\n\n";
+    /// CREATING EXACT SOLUTION
+    ofstream EXACT("/Users/marinastruleva/Desktop/TEST/PDE_ex.txt");
+    EXACT << setprecision(8);
+
+    for (int i = 0; i < Nx + 1; ++i) {
+        for (int j = 0; j < Ny + 1; ++j) {
+            //cout << u_exact(a + i*hx, c + j*hy) << " ";
+            EXACT << u_exact(a + i * hx, c + j * hy) << "\t";
+        }
+        EXACT << "\n";
+        //cout << endl;
+    }
+    cout << "it mx = " << ITERS_max <<endl;
+
+    cout << "\n\t\t ======== END ======";
+    cout << "\n time used = "<< float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    return 0;
+}
+
+void print_vector(vector<double> & v) {
+    cout << endl;
+    for (int i = 0; i < v.size(); i++) {
+        cout << setprecision(7) << setw(5) << v[i] << "\t";
+    }
+    cout << endl;
+}
+void print_matrix(int Nx, int Ny, double **mat) {
+    cout << endl;
+    for (int i = 0; i < Nx + 1; i++) {
+        for (int j = 0; j < Ny + 1; j++)
+            cout << mat[i][j] << "\t";
+        cout << endl;
+    }
+    cout <<"*\n";
+}
