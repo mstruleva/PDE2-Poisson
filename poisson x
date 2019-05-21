@@ -1,0 +1,133 @@
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <cmath>
+#include <fstream>
+#include <ctime>
+
+using namespace std;
+
+const double a = M_PI/2;
+const double b = 3*M_PI/2;
+const double c = M_PI/2;
+const double d = 3*M_PI/2;
+
+/// простая функция
+double u(double x, double y){
+    return sin(x*M_PI)*cos(y*M_PI);
+}
+
+/// правая часть аналитически
+double f(double x, double y){
+    return -2*M_PI*M_PI*sin(M_PI*x)*cos(M_PI*y);
+}
+
+/// нужная функция
+double u_(double x, double y) {
+    return -cos(x*x*x + y)*sin(2*M_PI*x*y)*sqrt(x*x+y*y+2*y+1) + 2*M_PI*sin(x*x*x + y)*cos(4*M_PI*x*y)*sqrt(x+ y + 2);
+}
+
+
+double solve_INEQ(int Nx, int Ny, double w, double eps_stop){
+    double hx=(b-a)/Nx, hy = (d-c)/Ny;
+
+    double x[Nx+1], y[Ny+1];
+    for (int i = 0; i < Nx+1; ++i){
+        x[i]=a+hx*i;
+    }
+    for (int j = 0; j < Ny+1; ++j){
+        y[j]=c+hy*j;
+    }
+
+    double num[Nx+1][Ny+1];
+    double num_prev[Nx+1][Ny+1];
+    double f_0[Nx+1][Ny+1]; //RHS of equation
+
+
+/// ЧИСЛЕННОЕ ПРИБЛИЖЕНИЕ ПРАВОЙ ЧАСТИ 
+    for (int i = 1; i < Nx; ++i) {
+        for (int j = 1; j < Ny; ++j) {
+            f_0[i][j] = (u(x[i+1], y[j]) - 2*u(x[i], y[j]) + u(x[i-1], y[j]))/hx/hx +
+                    (u(x[i], y[j+1]) - 2*u(x[i], y[j]) + u(x[i], y[j-1]))/hy/hy;
+        }
+    }
+
+    for (int i = 0; i < Nx+1; ++i){
+        for (int j = 0; j < Ny+1; ++j){
+            num[i][j]=0;
+            num_prev[i][j]=0;
+        }
+    }
+
+    for (int i = 0; i < Nx+1; ++i) {
+        for (int j = 0; j < Ny + 1; ++j) {
+            num_prev[0][j] = u(a, y[j]);
+            num_prev[Nx][j] = u(b, y[j]);
+            num_prev[i][0] = u(x[i], c);
+            num_prev[i][Ny] = u(x[i], d);
+            f_0[0][j] = 0;
+            f_0[Nx][j] = 0;
+            f_0[i][0] = 0;
+            f_0[i][Ny] = 0;
+        }
+    }
+    double eps=1;
+    int iter = 0;
+
+    while((eps>eps_stop)&(eps<10)) {
+
+        for (int i = 1; i < Nx; ++i) {
+            for (int j = 1; j < Ny; ++j) {
+                num_prev[i][j] = -f(x[i], y[j]) * hx * hy / 4 +
+                                 (num_prev[i][j - 1] + num_prev[i - 1][j] + num[i][j + 1] + num[i + 1][j]) / 4;
+            }
+        };
+        eps = 0;
+        for (int i = 1; i < Nx; ++i) {
+            for (int j = 1; j < Ny; ++j) {
+                num_prev[i][j] = w * num_prev[i][j] + (1 - w) * num[i][j];
+                eps = max(eps, fabs(num_prev[i][j] - num[i][j]));
+            }
+        }
+        for (int i = 0; i < Nx + 1; ++i) {
+            for (int j = 0; j < Ny + 1; ++j) {
+                num[i][j] = num_prev[i][j];
+            }
+        }
+
+        iter++;
+        //cout << "iter = " << iter << "\teps = " << eps << endl;
+    }
+
+    double eps1=0;
+
+    for (int i = 1; i < Nx+1; ++i){
+        for (int j = 1; j < Ny+1; ++j){
+            eps1=max(eps1,fabs(num_prev[i][j]-u(x[i],y[j])));
+        }
+    }
+    cout << "\n Nx = " << Nx << " Ny = " << Ny << " iter = " << iter << "\neps = " << eps1 << endl;
+    //cout << "eps = " << eps1 << endl;
+    return eps1;
+}
+
+int main()
+{
+    const clock_t begin_time = clock();
+    cout << "\t\t ======= BEGIN =====\n";
+
+    double w = 1.4; //параметр релаксации
+    double eps_stop = 1e-10; //условие остановки итераций
+
+    /// СХОДИМОСТЬ
+    ///*
+    int Nx = 5, Ny = 5;
+    for (int k = 1; k < 6; ++k) {
+        Nx *= 2;
+        Ny *= 2;
+        double E = solve_INEQ(Nx, Ny, w, 1e-10);
+    }
+        cout << "\n\t\t ======= END =======";
+    cout << "\n time used = "<< float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    return 0;
+}
